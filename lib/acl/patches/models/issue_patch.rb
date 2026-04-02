@@ -35,16 +35,17 @@ module Acl::Patches::Models
         custom_values_scope = acl_custom_values_scope(issue_ids, custom_fields)
         return if custom_values_scope.nil?
 
+        pairs = issues.map { |i| [i.project_id, i.tracker_id] }.uniq
+        return if pairs.empty?
+
+        pair_conditions = pairs.map { |proj_id, tr_id|
+          "(cft.tracker_id = #{tr_id.to_i} AND (cfp.project_id = #{proj_id.to_i} OR #{CustomField.table_name}.is_for_all = #{Issue.connection.quoted_true}))"
+        }.join(' OR ')
+
         cfs = IssueCustomField.joins("INNER JOIN custom_fields_trackers cft on cft.custom_field_id = #{CustomField.table_name}.id
-                                      LEFT JOIN custom_fields_projects cfp on cfp.custom_field_id = #{CustomField.table_name}.id
-                                      INNER JOIN (
-                                          SELECT i.project_id, i.tracker_id
-                                          FROM #{Issue.table_name} i
-                                          WHERE i.id IN (#{(issue_ids + [0]).join(',')})
-                                          GROUP BY i.project_id, i.tracker_id
-                                      ) i ON i.tracker_id = cft.tracker_id and (i.project_id = cfp.project_id OR #{CustomField.table_name}.is_for_all = #{Issue.connection.quoted_true})
-                                     ")
-                              .select("#{CustomField.table_name}.*, i.tracker_id, i.project_id")
+                                      LEFT JOIN custom_fields_projects cfp on cfp.custom_field_id = #{CustomField.table_name}.id")
+                              .where("(#{pair_conditions})")
+                              .select("#{CustomField.table_name}.*, cft.tracker_id, cfp.project_id")
                               .distinct
                               .inject({}) { |h, it|
           h["#{it.project_id}-#{it.tracker_id}"] ||= {}
@@ -155,10 +156,10 @@ module Acl::Patches::Models
                               FROM issues i
                                    INNER JOIN custom_values cv on cv.customized_id = i.id
                                    INNER JOIN custom_fields cf on cf.id = cv.custom_field_id
-                                   INNER JOIN (SELECT COUNT(1) as cnt, cv.custom_field_id, cv.customized_id FROM custom_values cv WHERE cv.customized_type = 'Issue' and cv.custom_field_id IN (#{custom_field_ids.join(',')}) and cv.customized_id IN (#{issue_ids.join(',')}) GROUP BY cv.custom_field_id, cv.customized_id) cv_m on cv_m.custom_field_id = cf.id and cv_m.customized_id = i.id
+                                   INNER JOIN (SELECT COUNT(1) as cnt, cv.custom_field_id, cv.customized_id FROM custom_values cv WHERE cv.customized_type = 'Issue' and cv.custom_field_id IN (#{(custom_field_ids + [0]).join(',')}) and cv.customized_id IN (#{(issue_ids + [0]).join(',')}) GROUP BY cv.custom_field_id, cv.customized_id) cv_m on cv_m.custom_field_id = cf.id and cv_m.customized_id = i.id
                               WHERE cv.customized_type = 'Issue'
-                                and cv.custom_field_id IN (#{custom_field_ids.join(',')})
-                                and i.id IN (#{issue_ids.join(',')})
+                                and cv.custom_field_id IN (#{(custom_field_ids + [0]).join(',')})
+                                and i.id IN (#{(issue_ids + [0]).join(',')})
                             ) cv
                             WHERE cv.mlt = 0 OR cv.row_num <= 3
                           ) cv on cv.id = #{CustomValue.table_name}.id

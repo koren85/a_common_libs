@@ -10,7 +10,7 @@ module Acl
 
     module InstanceMethods
       def link_to_user_with_acl(user, options={})
-        key = [user.class.name, user.try(:id), options.deep_dup]
+        key = [user.class.name, user.try(:id), options[:size], options[:class]]
         @_link_to_user_acl_cache ||= {}
         @_link_to_user_acl_cache[key] ||= link_to_user_without_acl(user, options)
       end

@@ -11,7 +11,7 @@ module Acl
     module InstanceMethods
 
       def avatar_with_acl(user, options={})
-        key = [user.class.name, user.try(:id), options.deep_dup]
+        key = [user.class.name, user.try(:id), options[:size], options[:class]]
         @_avatar_acl_cache ||= {}
         @_avatar_acl_cache[key] ||= avatar_without_acl(user, options)
       end

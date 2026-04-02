@@ -1,7 +1,11 @@
 class AclAjaxCounter < ActiveRecord::Base
   serialize :options
   def self.all_tokens
-    @all ||= AclAjaxCounter.all.inject({}) { |h, it| h[it.token] = it; h }
+    if @all.nil? || @all_loaded_at.nil? || @all_loaded_at < 5.minutes.ago
+      @all = AclAjaxCounter.all.inject({}) { |h, it| h[it.token] = it; h }
+      @all_loaded_at = Time.now
+    end
+    @all
   end
 
   def self.[](token)

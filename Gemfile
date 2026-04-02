@@ -1,1 +1,1 @@
-gem 'activerecord-session_store'
+#gem 'activerecord-session_store'

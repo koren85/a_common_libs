@@ -46,7 +46,7 @@ unless Redmine::I18n.included_modules.include?(Acl::I18nPatch)
   Redmine::I18n.send(:include, Acl::I18nPatch)
 end
 
-Rails.application.config.session_store :active_record_store
+Rails.application.config.session_store :cookie_store, key: '_redmine_session'
 require 'acl/acts_as_customizable_patch'
 Rails.application.config.to_prepare do
   load 'acl/loader.rb'

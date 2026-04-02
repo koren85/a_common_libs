@@ -17,15 +17,13 @@ module Acl::Patches::Models
 
       def get_favourite_project
         return @fav_project if @fav_project
-        @fav_project = Project.select("#{Project.table_name}.*, COUNT(#{Journal.table_name}.id) AS num_actions")
-                              .joins({ issues: :journals })
-                              .where("#{Journal.table_name}.user_id = ?", id)
-                              .group("projects.#{Project.column_names.join(', projects.')}")
-                              .order('num_actions DESC')
-                              .limit(1)
-                              .try(:first)
-
-        @fav_project = Project.all.first unless @fav_project
+        project_id = Issue.joins(:journals)
+                          .where("#{Journal.table_name}.user_id = ?", id)
+                          .group("#{Issue.table_name}.project_id")
+                          .order(Arel.sql("count(*) DESC"))
+                          .limit(1)
+                          .pick(:project_id)
+        @fav_project = project_id ? Project.find_by(id: project_id) : Project.first
 
         if self.preference.try(:favourite_project_id).nil? && !@fav_project.nil?
           self.preference = self.build_preference if self.preference.blank?
@@ -85,7 +83,7 @@ module Acl::Patches::Models
       end
 
       def acl_not_served_log_count(view_context=nil, params=nil, session=nil)
-        ApiLogForPlugin.where(served: false).size
+        ApiLogForPlugin.where(served: false).count
       end
 
       def acl_ajax_counter(action_name, options={})
