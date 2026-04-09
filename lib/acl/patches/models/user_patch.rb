@@ -22,7 +22,8 @@ module Acl::Patches::Models
                           .group("#{Issue.table_name}.project_id")
                           .order(Arel.sql("count(*) DESC"))
                           .limit(1)
-                          .pick(:project_id)
+                          .pluck(:project_id)
+                          .first
         @fav_project = project_id ? Project.find_by(id: project_id) : Project.first
 
         if self.preference.try(:favourite_project_id).nil? && !@fav_project.nil?
